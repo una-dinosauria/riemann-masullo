@@ -379,7 +379,7 @@ private theorem sLocalAdelicTheta_exists_dilation_bound (f : ℬₛ) (p : ℕ)
 
 /-- Paper: Proposition 2.3.1.2(1), p. 100. On a compact set of S-ideles, the
 norms of the S-unit summands are bounded by a common summable family. -/
-private theorem sLocalAdelicTheta_exists_summable_bound (f : ℬₛ) (K : Set Iₛ) (hK : IsCompact K) :
+theorem sLocalAdelicTheta_exists_summable_bound (f : ℬₛ) (K : Set Iₛ) (hK : IsCompact K) :
     ∃ u : Uₛ → ℝ, Summable u ∧ ∀ ξ g, g ∈ K → ‖thetaTerm f ξ g‖ ≤ u ξ := by
   obtain ⟨u, hu, hle⟩ := sLocalAdelicTheta_exists_dilation_bound F S f 0 K hK
   exact ⟨u, hu, fun ξ g hg ↦ by
