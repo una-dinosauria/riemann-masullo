@@ -178,7 +178,89 @@ private theorem sLocalPWTests_moments_surjective_zero_bump
       h (Multiplicative.ofAdd 0) = 0 ∧
       MeasureTheory.integral (sAdditiveTamagawaMeasure F S)
         (fun x ↦ h (Multiplicative.ofAdd x)) ≠ 0 := by
-  sorry
+  classical
+  let : MeasurableSpace (SAdeleRing F S) := instMeasurableSpaceSAdeleRing F S
+  let G := Multiplicative (SAdeleRing F S)
+  have hG := sAdele_fourierMeasure (F := F) (S := S)
+  let : T2Space G := hG.1
+  let : LocallyCompactSpace G := hG.2.1
+  let : BorelSpace G := hG.2.2.1
+  let μ : MeasureTheory.Measure G := sAdditiveTamagawaMeasure F S
+  let : μ.IsHaarMeasure := hG.2.2.2.1
+  let : μ.Regular := hG.2.2.2.2
+  let (v : S) : ProperSpace (v.val.adicCompletion F) := properSpace_adicCompletion v.val
+  let (w : InfinitePlace F) : SecondCountableTopology w.Completion :=
+    (InfinitePlace.Completion.isometry_extensionEmbedding w).isEmbedding.secondCountableTopology
+  let : SecondCountableTopology G := inferInstanceAs (SecondCountableTopology
+    (((w : InfinitePlace F) → w.Completion) × ((v : S) → v.val.adicCompletion F)))
+  -- A nonzero point inside `K`, on one archimedean coordinate.
+  obtain ⟨w₀⟩ : Nonempty (InfinitePlace F) := inferInstance
+  let ι : w₀.Completion → G := fun y ↦
+    Multiplicative.ofAdd ((Pi.single w₀ y : InfiniteAdeleRing F), (0 : (v : S) → v.val.adicCompletion F))
+  have hι : Continuous ι :=
+    continuous_ofAdd.comp ((continuous_single w₀).prodMk continuous_const)
+  have hι0 : ι 0 = Multiplicative.ofAdd 0 := by
+    change Multiplicative.ofAdd ((Pi.single w₀ 0 : InfiniteAdeleRing F), _) = _
+    rw [Pi.single_zero]
+    rfl
+  have hιne (y : w₀.Completion) (hy : y ≠ 0) : ι y ≠ Multiplicative.ofAdd 0 := by
+    intro h
+    have h1 := congrArg (fun z : G ↦ z.toAdd.1 w₀) h
+    simp only [ι, toAdd_ofAdd, Pi.single_eq_same] at h1
+    exact hy h1
+  let W₀ : Set G := interior (Multiplicative.toAdd ⁻¹' K)
+  have hV : W₀ ∈ 𝓝 (ι 0) := by
+    rw [hι0]
+    exact interior_mem_nhds.mpr (continuous_toAdd.continuousAt.preimage_mem_nhds hK)
+  have hpre : ι ⁻¹' W₀ ∈ 𝓝 (0 : w₀.Completion) := hι.continuousAt hV
+  have h2 : ‖(2 : w₀.Completion)‖ = 2 := by
+    have h := (InfinitePlace.Completion.isometry_extensionEmbedding w₀).norm_map_of_map_zero
+      (map_zero _) 2
+    rw [map_ofNat] at h
+    rw [← h]
+    norm_num
+  let : NontriviallyNormedField w₀.Completion :=
+    NontriviallyNormedField.ofNormNeOne ⟨2, fun h ↦ by rw [h, norm_zero] at h2; norm_num at h2,
+      by rw [h2]; norm_num⟩
+  have hne : (𝓝[≠] (0 : w₀.Completion)).NeBot := NormedField.nhdsNE_neBot (0 : w₀.Completion)
+  obtain ⟨y, hy0, hyV⟩ := hne.nonempty_of_mem (inter_mem_nhdsWithin {(0 : w₀.Completion)}ᶜ hpre)
+  -- A test supported in `K` away from zero, with value one at `ι y`.
+  let U : Set G := W₀ ∩ {Multiplicative.ofAdd 0}ᶜ
+  have hU : U ∈ 𝓝 (ι y) :=
+    (isOpen_interior.inter isOpen_compl_singleton).mem_nhds ⟨hyV, hιne y hy0⟩
+  obtain ⟨f, hfc, hfU, hf1⟩ := sLocalPWTests_moments_surjective_bump (ι y) U hU
+  have hf0 : f (Multiplicative.ofAdd 0) = 0 :=
+    image_eq_zero_of_notMem_tsupport fun h ↦ (hfU h).2 rfl
+  -- Some Fourier coefficient of `f` is nonzero.
+  obtain ⟨Fo, hFo⟩ := schwartzBruhat_fourier_equiv (G := G) μ
+  have hFf : ∃ χ, Fo f χ ≠ 0 := by
+    by_contra! h
+    have h0 : Fo f = 0 := Subtype.ext (funext h)
+    rw [Fo.map_eq_zero_iff] at h0
+    rw [h0] at hf1
+    exact zero_ne_one hf1
+  obtain ⟨χ, hχ⟩ := hFf
+  obtain ⟨M, hM⟩ := schwartzBruhat_mul_unitaryCharacter (A := G) χ⁻¹
+  have hMf : (M f).val = fun x ↦ (χ⁻¹ x : ℂ) * f x := funext (hM f)
+  refine ⟨M f, ?_, ?_, ?_, ?_⟩
+  · rw [hMf]
+    exact hfc.mul_left
+  · rw [hMf]
+    exact (tsupport_mul_subset_right).trans
+      (hfU.trans (inter_subset_left.trans interior_subset))
+  · rw [hM, hf0, mul_zero]
+  · have hint : MeasureTheory.integral (sAdditiveTamagawaMeasure F S)
+        (fun x ↦ M f (Multiplicative.ofAdd x)) = lcaFourier μ f χ := by
+      unfold lcaFourier
+      refine MeasureTheory.integral_congr_ae (.of_forall fun x ↦ ?_)
+      change M f (Multiplicative.ofAdd x) = f (Multiplicative.ofAdd x) *
+        star (χ (Multiplicative.ofAdd x) : ℂ)
+      rw [hM, mul_comm]
+      congr 1
+      change (((χ (Multiplicative.ofAdd x))⁻¹ : Circle) : ℂ) = _
+      rw [Circle.coe_inv_eq_conj, Complex.star_def]
+    rw [hint, ← (hFo f).2 χ]
+    exact hχ
 
 /-- Paper: Definitions 7.3.2.1(1) and 7.3.2.3(1), pp. 351, 355.
 Insertion of integer-ring indicators multiplies the Fourier value at zero by
